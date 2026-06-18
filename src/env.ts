@@ -10,6 +10,7 @@ export const env = createEnv({
       .default("development"),
 
     CORSAIR_KEK: z.string().min(1),
+    REDIS_URL: z.string().url().default("redis://localhost:6379"),
 
     GMAIL_CLIENT_ID: z.string().min(1),
     GMAIL_CLIENT_SECRET: z.string().min(1),
@@ -26,6 +27,7 @@ export const env = createEnv({
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
     CORSAIR_KEK: process.env.CORSAIR_KEK,
+    REDIS_URL: process.env.REDIS_URL,
 
     GMAIL_CLIENT_ID: process.env.GMAIL_CLIENT_ID,
     GMAIL_CLIENT_SECRET: process.env.GMAIL_CLIENT_SECRET,

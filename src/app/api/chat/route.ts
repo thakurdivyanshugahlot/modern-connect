@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/server/lib/session";
 import { corsair } from "@/server/lib/corsair";
 import { OpenAI } from "openai";
+import { createHash } from "crypto";
 import {
   Agent,
   run,
@@ -12,6 +13,11 @@ import {
   setDefaultOpenAIClient,
 } from "@openai/agents";
 import { OpenAIAgentsProvider } from "@corsair-dev/mcp";
+import {
+  classifyIntent,
+  classifyReadTarget,
+} from "@/server/lib/intent-classifier";
+import { redis, checkRateLimit, incrementRateLimit } from "@/server/lib/redis";
 
 const geminiClient = new OpenAI({
   apiKey: process.env.GEMINI_API_KEY!,
@@ -30,10 +36,112 @@ export async function POST(req: NextRequest) {
   const session = await requireSession();
   const { message, history } = await req.json();
 
+  // Fix null-safety for new conversations
+  const safeHistory = history ?? [];
+
+  // --- THING 1: INTENT CLASSIFICATION ---
+  const intent = classifyIntent(message);
   const tenantCorsair = corsair.withTenant(session.user.id);
 
+  // DETERMINISTIC_READ Short-circuit
+  if (intent === "DETERMINISTIC_READ") {
+    try {
+      let resultText = "";
+      const target = classifyReadTarget(message);
+
+      if (target === "EMAIL") {
+        const all = await tenantCorsair.gmail.db.messages.list({});
+        const unread = (all ?? []).filter((row: any) =>
+          row.data?.labelIds?.includes("UNREAD"),
+        );
+        resultText = `You have ${unread.length} unread emails.`;
+      } else if (target === "CALENDAR") {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tonight = new Date();
+        tonight.setHours(23, 59, 59, 999);
+
+        const all = await tenantCorsair.googlecalendar.db.events.list({});
+        const todayEvents = (all ?? []).filter((row: any) => {
+          const start = row.data?.start?.dateTime ?? row.data?.start?.date;
+          if (!start) return false;
+          const d = new Date(start);
+          return d >= today && d <= tonight;
+        });
+
+        resultText =
+          todayEvents.length > 0
+            ? `You have ${todayEvents.length} meeting${todayEvents.length > 1 ? "s" : ""} today.`
+            : "You have no meetings scheduled for today.";
+      } else if (target === "LABELS") {
+        const labels = await tenantCorsair.gmail.db.labels.list({});
+        const labelNames = (labels ?? [])
+          .map((row: any) => row.data?.name)
+          .filter(Boolean);
+        resultText =
+          labelNames.length > 0
+            ? `Your labels: ${labelNames.join(", ")}.`
+            : "You don't have any custom labels.";
+      } else {
+        resultText = "Try asking about unread emails or today's meetings.";
+      }
+
+      return NextResponse.json({
+        response: resultText,
+        history: [
+          ...safeHistory,
+          { role: "user", content: message },
+          { role: "assistant", content: resultText },
+        ],
+      });
+    } catch (dbErr) {
+      console.error(
+        "[Deterministic] DB fetch failed, falling back to LLM:",
+        dbErr,
+      );
+    }
+  }
+
+  // --- THING 3: RESPONSE CACHING (LLM_READ only, no pronouns) ---
+  const isCacheable =
+    intent === "LLM_READ" && !/\b(it|that|those|them|they)\b/i.test(message);
+  const cacheKey = `cache:chat:${session.user.id}:${createHash("sha256").update(message).digest("hex")}`;
+
+  if (isCacheable) {
+    try {
+      const cachedResponse = await redis.get(cacheKey);
+      if (cachedResponse) {
+        return NextResponse.json({
+          response: cachedResponse,
+          history: [
+            ...safeHistory,
+            { role: "user", content: message },
+            { role: "assistant", content: cachedResponse },
+          ],
+          fromCache: true,
+        });
+      }
+    } catch (err) {
+      console.error("[Redis] Cache hit failed (fail-open):", err);
+    }
+  }
+
+  // --- THING 2: RATE LIMITING ---
+  const quota = await checkRateLimit(session.user.id);
+  if (!quota.allowed) {
+    return NextResponse.json(
+      {
+        error:
+          "You've used all 20 free AI requests for today. Upgrade to Pro for unlimited access. Resets at midnight.",
+      },
+      { status: 403 },
+    );
+  }
+
+  // --- THING 3: HISTORY TRIMMING ---
+  const trimmedHistory = safeHistory.slice(-6);
+
   const provider = new OpenAIAgentsProvider();
-  // ✅ provider.build() is async — must be awaited
   const tools = await provider.build({ corsair: tenantCorsair, tool });
 
   const agent = new Agent({
@@ -45,29 +153,31 @@ When referencing resources, always use their ID not their name.
 Available plugins are 'gmail' and 'googlecalendar'.
 Today is ${new Date().toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}.
 The user's timezone is Asia/Kolkata (IST).
+Sign emails with the sender's real name "${session.user.name}" — never use placeholder text like [Your Name].
 
-CALENDAR EVENTS — always use this exact shape:
+CALENDAR EVENTS
+ALWAYS use this exact shape for googlecalendar.api.events.create:
 {
-  summary: "Meeting title",
-  description: "optional description",
-  start: { dateTime: "2026-06-18T20:00:00+05:30", timeZone: "Asia/Kolkata" },
-  end:   { dateTime: "2026-06-18T21:00:00+05:30", timeZone: "Asia/Kolkata" },
-  attendees: [{ email: "recipient@gmail.com" }]
+  calendarId: "primary",
+  event: {
+    summary: "Meeting title",
+    description: "optional description",
+    start: { dateTime: "2026-06-18T20:00:00+05:30", timeZone: "Asia/Kolkata" },
+    end: { dateTime: "2026-06-18T21:00:00+05:30", timeZone: "Asia/Kolkata" },
+    attendees: [{ email: "recipient@gmail.com" }]
+  },
+  sendUpdates: "all"
 }
+
+NEVER use:
+{ resource: {...} }
+The Corsair SDK requires the event property, not resource.
+
+- sendUpdates: "all" is REQUIRED on every events.create and events.update 
+  call with attendees — without it, no invite email is sent.
 - dateTime MUST be ISO 8601 with IST offset (+05:30), never UTC
 - Always include timeZone: "Asia/Kolkata" in both start and end
-- Default duration is 1 hour
-
-TO POSTPONE A MEETING:
-1. First call googlecalendar.api.events.list or search to find the event by title/date
-2. Get the event ID from the result
-3. Call googlecalendar.api.events.update (NOT create) with the event ID and new start/end times
-4. Then send an email informing the attendees of the change
-
-GMAIL — to send email use gmail.api.messages.send with a base64url-encoded RFC 2822 message.
-When asked to inform someone about a meeting change, send both:
-1. A calendar update (events.update with new time)
-2. A plain email informing them of the change`,
+- Default duration is 1 hour`,
     tools,
   });
 
@@ -75,7 +185,7 @@ When asked to inform someone about a meeting change, send both:
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       result = await run(agent, [
-        ...history,
+        ...trimmedHistory,
         { role: "user", content: message },
       ]);
       break;
@@ -89,8 +199,30 @@ When asked to inform someone about a meeting change, send both:
     }
   }
 
+  const finalResponse = result?.finalOutput;
+
+  // Save to Cache if cacheable
+  if (isCacheable && finalResponse) {
+    try {
+      await redis.set(cacheKey, finalResponse, "EX", 60 * 5); // 5 minute TTL
+    } catch (err) {
+      console.error("[Redis] Cache set failed:", err);
+    }
+  }
+
+  // Increment Rate Limit only on successful LLM call
+  await incrementRateLimit(session.user.id);
+
   return NextResponse.json({
-    response: result?.finalOutput,
-    history: result?.history ?? [],
+    response: finalResponse,
+    history: [
+      ...safeHistory,
+      { role: "user", content: message },
+      { role: "assistant", content: finalResponse },
+    ],
   });
 }
+
+
+
+

@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
       start: { dateTime: `${date}T${startTime}:00`, timeZone: "Asia/Kolkata" },
       end: { dateTime: `${date}T${endTime}:00`, timeZone: "Asia/Kolkata" },
     },
+    sendUpdates: "all",
   });
 
   return NextResponse.json(event);

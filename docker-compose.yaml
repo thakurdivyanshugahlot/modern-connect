@@ -12,5 +12,15 @@ services:
     volumes:
       - modern-corsair-connect-postgres_data:/var/lib/postgresql/data
 
+  redis:
+    image: redis:7-alpine
+    container_name: modern-connect-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - modern-connect-redis_data:/data
+
 volumes:
   modern-corsair-connect-postgres_data:
+  modern-connect-redis_data:
