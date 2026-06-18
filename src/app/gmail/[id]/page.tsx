@@ -1,8 +1,9 @@
-// src/app/gmail/[id]/page.tsx
 import { corsair } from "@/server/lib/corsair";
 import { requireSession } from "@/server/lib/session";
 import Link from "next/link";
-import { EmailBody } from "./EmailBody";
+import MessageDetailClient from "./MessageDetailClient";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface CachedMessage {
   id: string;
@@ -16,66 +17,34 @@ interface CachedMessage {
   body: string;
   htmlBody?: string;
 }
+
 async function getMessage(
   userId: string,
   id: string,
 ): Promise<CachedMessage | null> {
   const tenant = corsair.withTenant(userId);
-
   const cached = await tenant.gmail.db.messages.list({});
-
   const match = (cached ?? []).find(
     (row: any) => row.data?.id === id || row.entity_id === id,
   );
-
   return match ? (match.data as CachedMessage) : null;
-}
-
-function MessageHeader({ message }: { message: CachedMessage }) {
-  return (
-    <div className="mb-6">
-      <Link
-        href="/gmail"
-        className="text-sm text-blue-600 hover:underline mb-4 inline-block"
-      >
-        ← Back to Inbox
-      </Link>
-      <h1 className="text-xl font-semibold mb-3">{message.subject}</h1>
-      <div className="flex flex-col gap-1 text-sm text-gray-500">
-        <span>
-          <span className="font-medium text-gray-700">From:</span>{" "}
-          {message.from}
-        </span>
-        <span>
-          <span className="font-medium text-gray-700">To:</span> {message.to}
-        </span>
-        <span>
-          <span className="font-medium text-gray-700">Date:</span>{" "}
-          {message.date ??
-            (message.createdAt
-              ? new Date(message.createdAt).toLocaleString()
-              : "Unknown")}
-        </span>
-      </div>
-    </div>
-  );
 }
 
 function NotFound() {
   return (
-    <div className="max-w-3xl mx-auto p-6">
-      <Link
-        href="/gmail"
-        className="text-sm text-blue-600 hover:underline mb-4 inline-block"
-      >
-        ← Back to Inbox
-      </Link>
-      <div className="text-center py-16 text-gray-400">
-        <p className="text-lg">Message not found</p>
-        <p className="text-sm mt-1">
-          It may not have synced yet — try refreshing the inbox.
-        </p>
+    <div className="flex-1 bg-zinc-950 flex flex-col items-center justify-center p-6 text-center">
+      <div className="h-16 w-16 rounded-full bg-zinc-900 flex items-center justify-center mb-6">
+        <ArrowLeft className="h-8 w-8 text-zinc-700" />
       </div>
+      <h2 className="text-xl font-bold text-zinc-200">Message not found</h2>
+      <p className="text-sm text-zinc-500 mt-2 max-w-xs leading-relaxed">
+        We couldn't locate this email. It may have been deleted or hasn't synced to your workspace yet.
+      </p>
+      <Link href="/gmail" className="mt-8">
+        <Button variant="outline" className="border-zinc-800 text-zinc-400 hover:bg-zinc-900 rounded-xl px-6">
+          Return to Inbox
+        </Button>
+      </Link>
     </div>
   );
 }
@@ -93,11 +62,5 @@ export default async function MessagePage({
     return <NotFound />;
   }
 
-  return (
-    <div className="max-w-3xl mx-auto p-6">
-      <MessageHeader message={message} />
-      <hr className="mb-6" />
-      <EmailBody message={message} />
-    </div>
-  );
+  return <MessageDetailClient message={message} />;
 }

@@ -4,10 +4,7 @@ import { eq, and } from "drizzle-orm";
 
 export async function getGmailMessages(tenantId: string) {
   const account = await db.query.corsairAccounts.findFirst({
-    where: and(
-      eq(corsairAccounts.tenantId, tenantId),
-      eq(corsairAccounts.status, "active")
-    ),
+    where: eq(corsairAccounts.tenantId, tenantId),
   });
 
   if (!account) return [];
@@ -15,7 +12,7 @@ export async function getGmailMessages(tenantId: string) {
   return db.query.corsairEntities.findMany({
     where: and(
       eq(corsairEntities.accountId, account.id),
-      eq(corsairEntities.type, "email")
+      eq(corsairEntities.entityType, "email")
     ),
     orderBy: (entities, { desc }) => [desc(entities.createdAt)],
   });
@@ -23,10 +20,7 @@ export async function getGmailMessages(tenantId: string) {
 
 export async function getCalendarEvents(tenantId: string) {
   const account = await db.query.corsairAccounts.findFirst({
-    where: and(
-      eq(corsairAccounts.tenantId, tenantId),
-      eq(corsairAccounts.status, "active")
-    ),
+    where: eq(corsairAccounts.tenantId, tenantId),
   });
 
   if (!account) return [];
@@ -34,7 +28,7 @@ export async function getCalendarEvents(tenantId: string) {
   return db.query.corsairEntities.findMany({
     where: and(
       eq(corsairEntities.accountId, account.id),
-      eq(corsairEntities.type, "event")
+      eq(corsairEntities.entityType, "event")
     ),
     orderBy: (entities, { desc }) => [desc(entities.createdAt)],
   });

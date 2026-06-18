@@ -6,10 +6,12 @@ import { corsair, bootstrapCorsairCredentials } from "@/server/lib/corsair";
 import { setupCorsair } from "corsair";
 import { getTodayRange } from "@/server/lib/calendar-utils";
 
-bootstrapCorsairCredentials().catch(console.error);
+const { GET: _GET, POST: _POST } = toNextJsHandler(auth);
 
-const { GET: _GET, POST } = toNextJsHandler(auth);
-export { POST };
+export async function POST(req: NextRequest) {
+  await bootstrapCorsairCredentials().catch(console.error);
+  return _POST(req);
+}
 
 // ── Programmatic replacements for CLI calls ───────────────────────────────────
 
@@ -70,6 +72,8 @@ async function registerCalendarWatch(accessToken: string) {
 // ── Auth route ────────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
+  await bootstrapCorsairCredentials().catch(console.error);
+
   const url = new URL(req.url);
   const response = await _GET(req);
 

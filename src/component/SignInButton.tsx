@@ -1,9 +1,6 @@
-// src/components/SignInButton.tsx
 "use client";
 
-
-import { signIn } from "@/server/lib/auth-client"// Import from your local client file
-
+import { signIn } from "@/server/lib/auth-client"
 
 function GoogleIcon() {
   return (
@@ -20,14 +17,14 @@ export function SignInButton() {
   const handleSignIn = async () => {
     await signIn.social({
       provider: "google",
-      callbackURL: "/", // Redirects to the homepage AFTER successful login
+      callbackURL: "/", 
     });
   };
 
   return (
     <button
       onClick={handleSignIn}
-      className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium hover:bg-gray-50 transition-colors"
+      className="inline-flex items-center gap-2.5 px-6 py-3 rounded-xl border border-zinc-800 bg-zinc-900 text-sm font-medium text-zinc-100 hover:bg-zinc-800 hover:border-zinc-700 transition-all shadow-xl"
     >
       <GoogleIcon />
       Sign in with Google

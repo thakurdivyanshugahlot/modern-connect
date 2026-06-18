@@ -1,7 +1,6 @@
-// src/components/SignOutButton.tsx
 "use client";
 
-import { signOut } from "@/server/lib/auth-client"; // Import from your local client file
+import { signOut } from "@/server/lib/auth-client";
 import { useRouter } from "next/navigation";
 
 export function SignOutButton() {
@@ -11,8 +10,8 @@ export function SignOutButton() {
     await signOut({
       fetchOptions: {
         onSuccess: () => {
-          router.push("/"); // Client-side redirect to home
-          router.refresh(); // Clears any server-component layouts cache
+          router.push("/");
+          router.refresh();
         },
       },
     });
@@ -21,7 +20,7 @@ export function SignOutButton() {
   return (
     <button
       onClick={handleSignOut}
-      className="text-sm text-gray-400 hover:text-gray-600"
+      className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors font-medium px-4"
     >
       Sign out
     </button>
