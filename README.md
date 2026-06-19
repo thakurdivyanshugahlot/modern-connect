@@ -19,10 +19,72 @@ Because our OAuth consent screen (the "Log in with Google" page) is currently se
 
 ### Test Credentials
 To test the application, please use the provided test account:
-- **Test Email:** `[Enter your test email here]`
-- **Test Password:** `[Enter your test password here]`
+- **Test Email:** `etest9051@gmail.com`
+- **Test Password:** `testuser123`
 
 *(Note: If you need to test with a different Google account, you must first add that email address to the "Test Users" section in the Google Cloud Console under APIs & Services > OAuth consent screen).*
+
+## Environment Variables
+
+Create a `.env` file in the project root and configure the following variables:
+
+```env
+# Database (PostgreSQL - e.g. Neon, Supabase)
+DATABASE_URL="postgresql://username:password@host:5432/database_name"
+
+# App Environment
+NODE_ENV="development"
+BETTER_AUTH_URL="http://localhost:3000"
+BETTER_AUTH_SECRET="your-random-secret-min-32-chars"
+
+# Encryption Key
+CORSAIR_KEK="your-encryption-key"
+
+# Redis
+REDIS_URL="redis://localhost:6379"
+
+# Gmail OAuth
+GMAIL_CLIENT_ID="xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com"
+GMAIL_CLIENT_SECRET="GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+GMAIL_PUBSUB_TOPIC="projects/your-project-id/topics/your-topic-name"
+
+# Webhooks
+WEBHOOK_URL="http://localhost:3000/api/webhooks"
+
+# AI
+GEMINI_API_KEY="AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+```
+
+### Generate Required Secrets
+
+```bash
+openssl rand -base64 32
+```
+
+Use the generated value for:
+
+* `BETTER_AUTH_SECRET`
+* `CORSAIR_KEK`
+
+### Production Notes
+
+Update the following values before deployment:
+
+```env
+BETTER_AUTH_URL="https://your-app.vercel.app"
+WEBHOOK_URL="https://your-app.vercel.app/api/webhooks"
+REDIS_URL="rediss://user:password@host:port"
+```
+
+### Security
+
+* Never commit your `.env` file to GitHub.
+* Keep all API keys and secrets private.
+* Add `.env` to `.gitignore`.
+
+```
+```
+
 
 ## 🛠️ Technical Stack & Architecture
 
