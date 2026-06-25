@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { NewMailBanner } from "./NewMailBanner";
+import { useTimezone } from "@/hooks/useTimezone";
 
 interface DashboardProps {
   userEmail: string;
@@ -32,34 +33,49 @@ interface DashboardProps {
   todayEvents: any[];
 }
 
-function formatDate(dateStr: string): string {
+// Format in the user's actual timezone (passed in from useTimezone). On the
+// server / first client render this is the "Asia/Kolkata" fallback so the two
+// renders match; the timestamp nodes carry suppressHydrationWarning so the
+// post-mount correction to the real timezone never trips React #418.
+function isSameDayInTz(a: Date, b: Date, tz: string): boolean {
+  const key = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: tz });
+  return key(a) === key(b);
+}
+
+function formatDate(dateStr: string, tz: string): string {
   try {
     const date = new Date(dateStr);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
+    const isToday = isSameDayInTz(date, new Date(), tz);
     if (isToday) {
       return date.toLocaleTimeString("en-IN", {
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: tz,
       });
     }
-    return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    return date.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      timeZone: tz,
+    });
   } catch {
     return dateStr;
   }
 }
 
-function formatEventTime(start: any, isAllDay: boolean): string {
+function formatEventTime(start: any, isAllDay: boolean, tz: string): string {
   if (isAllDay) return "All day";
   const date = new Date(start);
   return date.toLocaleTimeString("en-IN", {
     hour: "numeric",
     minute: "2-digit",
-    hour12: true
+    hour12: true,
+    timeZone: tz,
   });
 }
 
 export default function DashboardClient({ userEmail, recentMessages, unreadCount, sentToday, draftCount, labels, todayEvents }: DashboardProps) {
+  const userTimezone = useTimezone();
   const stats = [
     { label: "Unread", value: unreadCount, sub: "in inbox", icon: Mail, color: "text-blue-400", bg: "bg-blue-400/10" },
     { label: "Sent Today", value: sentToday, sub: "messages", icon: Send, color: "text-purple-400", bg: "bg-purple-400/10" },
@@ -185,7 +201,7 @@ export default function DashboardClient({ userEmail, recentMessages, unreadCount
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between mb-0.5">
                                 <span className="text-sm font-semibold text-zinc-100 truncate">{senderName}</span>
-                                <span className="text-[10px] text-zinc-600 font-medium">{formatDate(msg.createdAt)}</span>
+                                <span suppressHydrationWarning className="text-[10px] text-zinc-600 font-medium">{formatDate(msg.createdAt, userTimezone)}</span>
                               </div>
                               <p className="text-xs text-zinc-400 truncate group-hover:text-zinc-300 transition-colors">{msg.subject}</p>
                             </div>
@@ -223,7 +239,7 @@ export default function DashboardClient({ userEmail, recentMessages, unreadCount
                             <div className="h-2 w-2 rounded-full bg-purple-500 mt-1.5 shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-semibold text-zinc-200 group-hover:text-purple-400 transition-colors truncate">{event.summary}</p>
-                              <p className="text-[10px] text-zinc-500 mt-0.5 font-medium">{formatEventTime(event.start, event.isAllDay)}</p>
+                              <p suppressHydrationWarning className="text-[10px] text-zinc-500 mt-0.5 font-medium">{formatEventTime(event.start, event.isAllDay, userTimezone)}</p>
                             </div>
                           </div>
                         ))}

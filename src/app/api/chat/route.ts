@@ -36,10 +36,15 @@ const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 export async function POST(req: NextRequest) {
   const session = await requireSession();
-  const { message, history } = await req.json();
+  const { message, history, timezone } = await req.json();
 
   // Fix null-safety for new conversations
   const safeHistory = history ?? [];
+
+  // The client sends its live IANA timezone with every message; fall back to
+  // IST if it's missing (e.g. an older client or a non-browser caller).
+  const userTimezone =
+    typeof timezone === "string" && timezone ? timezone : "Asia/Kolkata";
 
   // --- THING 1: INTENT CLASSIFICATION ---
   const intent = classifyIntent(message);
@@ -186,8 +191,8 @@ Use list_operations to discover available APIs, get_schema to understand require
 To send an email, ALWAYS use the dedicated send_email tool — do NOT build raw MIME or call gmail.api.messages.send via run_script.
 When referencing resources, always use their ID not their name.
 Available plugins are 'gmail' and 'googlecalendar'.
-Today is ${new Date().toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}.
-The user's timezone is Asia/Kolkata (IST).
+Today is ${new Date().toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: userTimezone })}.
+The user's timezone is ${userTimezone}.
 Sign emails with the sender's real name "${session.user.name}" — never use placeholder text like [Your Name].
 
 CALENDAR EVENTS
@@ -197,8 +202,8 @@ ALWAYS use this exact shape for googlecalendar.api.events.create:
   event: {
     summary: "Meeting title",
     description: "optional description",
-    start: { dateTime: "2026-06-18T20:00:00+05:30", timeZone: "Asia/Kolkata" },
-    end: { dateTime: "2026-06-18T21:00:00+05:30", timeZone: "Asia/Kolkata" },
+    start: { dateTime: "2026-06-18T20:00:00", timeZone: "${userTimezone}" },
+    end: { dateTime: "2026-06-18T21:00:00", timeZone: "${userTimezone}" },
     attendees: [{ email: "recipient@gmail.com" }]
   },
   sendUpdates: "all"
@@ -210,8 +215,9 @@ The Corsair SDK requires the event property, not resource.
 
 - sendUpdates: "all" is REQUIRED on every events.create and events.update 
   call with attendees — without it, no invite email is sent.
-- dateTime MUST be ISO 8601 with IST offset (+05:30), never UTC
-- Always include timeZone: "Asia/Kolkata" in both start and end
+- dateTime is local wall-clock time in ISO 8601 with NO "Z"/UTC suffix and NO
+  explicit offset — Google applies the timeZone field below
+- Always include timeZone: "${userTimezone}" in both start and end
 - Default duration is 1 hour`,
     tools,
   });

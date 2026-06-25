@@ -29,6 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTimezone } from "@/hooks/useTimezone";
 
 interface CachedMessage {
   id: string;
@@ -42,18 +43,31 @@ interface CachedMessage {
   labelIds: string[];
 }
 
-function formatDate(dateStr: string): string {
+// Format in the user's actual timezone (passed in from useTimezone). On the
+// server / first client render this is the "Asia/Kolkata" fallback so the two
+// renders match; the timestamp node carries suppressHydrationWarning so the
+// post-mount correction to the real timezone never trips React #418.
+function isSameDayInTz(a: Date, b: Date, tz: string): boolean {
+  const key = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: tz });
+  return key(a) === key(b);
+}
+
+function formatDate(dateStr: string, tz: string): string {
   try {
     const date = new Date(dateStr);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
+    const isToday = isSameDayInTz(date, new Date(), tz);
     if (isToday) {
       return date.toLocaleTimeString("en-IN", {
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: tz,
       });
     }
-    return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    return date.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      timeZone: tz,
+    });
   } catch {
     return dateStr;
   }
@@ -64,6 +78,7 @@ export default function InboxClient({
 }: {
   messages: CachedMessage[];
 }) {
+  const userTimezone = useTimezone();
   const queryClient = useQueryClient();
   const QUERY_KEY = ["inbox"] as const;
 
@@ -263,8 +278,8 @@ export default function InboxClient({
                       </div>
 
                       <div className="md:col-span-2 text-right">
-                        <span className={`text-[10px] font-medium tracking-tight ${isUnread ? 'text-blue-400' : 'text-zinc-600'}`}>
-                          {formatDate(msg.createdAt)}
+                        <span suppressHydrationWarning className={`text-[10px] font-medium tracking-tight ${isUnread ? 'text-blue-400' : 'text-zinc-600'}`}>
+                          {formatDate(msg.createdAt, userTimezone)}
                         </span>
                       </div>
                     </div>

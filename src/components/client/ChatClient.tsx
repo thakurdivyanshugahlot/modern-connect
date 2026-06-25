@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTimezone } from "@/hooks/useTimezone";
 
 interface Message {
   role: "user" | "assistant";
@@ -59,6 +60,7 @@ export default function ChatClient({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const userTimezone = useTimezone();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -82,7 +84,12 @@ export default function ChatClient({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userText, history }),
+        body: JSON.stringify({
+          message: userText,
+          history,
+          // Read live at send time so it's always the real browser timezone.
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
       });
 
       const data = await res.json();
@@ -125,8 +132,8 @@ export default function ChatClient({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-zinc-900 border-zinc-800 text-zinc-400 font-normal">
-              IST Timezone
+            <Badge suppressHydrationWarning variant="outline" className="bg-zinc-900 border-zinc-800 text-zinc-400 font-normal">
+              {userTimezone}
             </Badge>
             <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white">
               <RefreshCcw className="h-4 w-4" />

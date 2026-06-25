@@ -1,7 +1,7 @@
 // src/middleware.ts
 import { NextRequest, NextResponse } from "next/server";
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const isAuthRoute = req.nextUrl.pathname.startsWith("/api/auth");
   const isPublic = req.nextUrl.pathname === "/";
 

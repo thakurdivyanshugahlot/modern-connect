@@ -20,6 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTimezone } from "@/hooks/useTimezone";
 
 import { type ParsedEvent } from "@/server/lib/calendar-utils";
 import { CreateEventButton } from "./CreateEventButton";
@@ -30,17 +31,28 @@ interface CalendarProps {
   totalCount: number;
 }
 
-function formatEventTime(start: string, isAllDay: boolean): string {
+// Format in the user's actual timezone (passed in from useTimezone). First
+// render uses the "Asia/Kolkata" fallback (matches the server); the date/time
+// nodes carry suppressHydrationWarning so the post-mount correction to the real
+// timezone never trips React #418.
+function isSameDayInTz(a: Date, b: Date, tz: string): boolean {
+  const key = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: tz });
+  return key(a) === key(b);
+}
+
+function formatEventTime(start: string, isAllDay: boolean, tz: string): string {
   if (isAllDay) return "All day";
   const date = new Date(start);
   return date.toLocaleTimeString("en-IN", {
     hour: "numeric",
     minute: "2-digit",
-    hour12: true
+    hour12: true,
+    timeZone: tz,
   });
 }
 
 export default function CalendarClient({ userId, groupedEvents, totalCount }: CalendarProps) {
+  const userTimezone = useTimezone();
   const container = {
     hidden: { opacity: 0 },
     show: {
@@ -118,18 +130,18 @@ export default function CalendarClient({ userId, groupedEvents, totalCount }: Ca
             >
               {Object.entries(groupedEvents).map(([date, dayEvents], i) => {
                 const dateObj = new Date(date);
-                const isToday = dateObj.toDateString() === new Date().toDateString();
+                const isToday = isSameDayInTz(dateObj, new Date(), userTimezone);
 
                 return (
                   <motion.div key={date} variants={item} className="space-y-4">
                     <div className="flex items-center gap-4">
                       <div className={`h-10 w-10 rounded-xl flex flex-col items-center justify-center border ${isToday ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-900/20' : 'bg-zinc-900/50 border-zinc-800 text-zinc-400'}`}>
-                        <span className="text-[10px] font-bold uppercase leading-none opacity-80">{dateObj.toLocaleDateString("en-IN", { weekday: "short" })}</span>
-                        <span className="text-lg font-bold leading-none mt-0.5">{dateObj.getDate()}</span>
+                        <span suppressHydrationWarning className="text-[10px] font-bold uppercase leading-none opacity-80">{dateObj.toLocaleDateString("en-IN", { weekday: "short", timeZone: userTimezone })}</span>
+                        <span suppressHydrationWarning className="text-lg font-bold leading-none mt-0.5">{dateObj.toLocaleDateString("en-IN", { day: "numeric", timeZone: userTimezone })}</span>
                       </div>
                       <div className="flex-1">
-                        <h2 className={`text-sm font-bold uppercase tracking-widest ${isToday ? 'text-purple-400' : 'text-zinc-500'}`}>
-                          {isToday ? "Today" : dateObj.toLocaleDateString("en-IN", { month: "long", day: "numeric" })}
+                        <h2 suppressHydrationWarning className={`text-sm font-bold uppercase tracking-widest ${isToday ? 'text-purple-400' : 'text-zinc-500'}`}>
+                          {isToday ? "Today" : dateObj.toLocaleDateString("en-IN", { month: "long", day: "numeric", timeZone: userTimezone })}
                         </h2>
                         <div className="h-px flex-1 bg-zinc-800/50 mt-2" />
                       </div>
@@ -152,9 +164,9 @@ export default function CalendarClient({ userId, groupedEvents, totalCount }: Ca
                                   )}
                                 </div>
                                 <div className="flex items-center gap-4 text-xs text-zinc-500">
-                                  <div className="flex items-center gap-1.5 font-medium">
+                                  <div suppressHydrationWarning className="flex items-center gap-1.5 font-medium">
                                     <Clock className="h-3.5 w-3.5 opacity-70" />
-                                    {event.isAllDay ? "All Day" : `${formatEventTime(event.start, false)} – ${formatEventTime(event.end, false)}`}
+                                    {event.isAllDay ? "All Day" : `${formatEventTime(event.start, false, userTimezone)} – ${formatEventTime(event.end, false, userTimezone)}`}
                                   </div>
                                   {event.location && (
                                     <div className="flex items-center gap-1.5 truncate">

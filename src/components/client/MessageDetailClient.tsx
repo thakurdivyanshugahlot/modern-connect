@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EmailBody } from "./EmailBody";
+import { useTimezone } from "@/hooks/useTimezone";
 
 
 interface CachedMessage {
@@ -39,14 +40,19 @@ interface CachedMessage {
 }
 
 export default function MessageDetailClient({ message }: { message: CachedMessage }) {
+  const userTimezone = useTimezone();
   const senderName = (message.from ?? "").replace(/<.*?>/, "").trim();
   const initials = senderName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
+  // Format in the user's actual timezone. First render uses the "Asia/Kolkata"
+  // fallback (matches the server); the date node has suppressHydrationWarning so
+  // the post-mount correction to the real timezone never trips React #418.
   const displayDate = message.date ?? (message.createdAt ? new Date(message.createdAt).toLocaleString("en-IN", {
     day: "numeric",
     month: "long",
     year: "numeric",
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
+    timeZone: userTimezone,
   }) : "Unknown Date");
 
   return (
@@ -146,7 +152,7 @@ export default function MessageDetailClient({ message }: { message: CachedMessag
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">{displayDate}</p>
+                    <p suppressHydrationWarning className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">{displayDate}</p>
                     <div className="flex justify-end gap-1 mt-2">
                        <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-white rounded-lg">
                         <Reply className="h-4 w-4" />
