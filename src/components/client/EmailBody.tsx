@@ -1,4 +1,3 @@
-// src/app/gmail/[id]/EmailBody.tsx  ← NEW FILE
 "use client";
 
 import type { ParsedMessage } from "@/server/lib/gmail-utils";

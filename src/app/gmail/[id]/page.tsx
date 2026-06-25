@@ -1,9 +1,11 @@
 import { corsair } from "@/server/lib/corsair";
 import { requireSession } from "@/server/lib/session";
 import Link from "next/link";
-import MessageDetailClient from "./MessageDetailClient";
+
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import MessageDetailClient from "@/components/client/MessageDetailClient";
+
 
 interface CachedMessage {
   id: string;

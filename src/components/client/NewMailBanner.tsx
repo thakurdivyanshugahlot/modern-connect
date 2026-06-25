@@ -1,13 +1,20 @@
 "use client";
 
-import { useRealtimeUpdates } from "../useRealtimeUpdates";
+
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useRealtimeUpdates } from "./useRealtimeUpdates";
 
-export function NewMailBanner() {
+interface NewMailBannerProps {
+  userEmail: string;
+  unreadCount: number;
+  onMarkAsRead: () => void;
+}
+
+export function NewMailBanner({ userEmail, unreadCount, onMarkAsRead }: NewMailBannerProps) {
   const event = useRealtimeUpdates();
   const router = useRouter();
   const [visible, setVisible] = useState(false);
@@ -18,7 +25,9 @@ export function NewMailBanner() {
 
   if (!visible || !event) return null;
 
-  const message = event.type === "new_email" ? "New email received in your inbox" : "Calendar events have been updated";
+  const message = event.type === "new_email" 
+    ? `${unreadCount} new email${unreadCount !== 1 ? "s" : ""} in your inbox` 
+    : "Calendar events have been updated";
 
   return (
     <AnimatePresence>
@@ -37,9 +46,23 @@ export function NewMailBanner() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-blue-400 font-bold">Realtime Notification</p>
               <p className="text-sm text-zinc-200 mt-0.5 font-medium">{message}</p>
+              <p className="text-xs text-zinc-400 mt-1">{userEmail}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {event.type === "new_email" && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  onMarkAsRead();
+                  setVisible(false);
+                }}
+                className="bg-green-600 hover:bg-green-500 text-white border-none rounded-xl h-8 px-3 text-xs gap-1.5 font-semibold transition-all shadow-md shadow-green-900/20"
+              >
+                Mark as Read
+              </Button>
+            )}
             <Button
               size="sm"
               variant="secondary"

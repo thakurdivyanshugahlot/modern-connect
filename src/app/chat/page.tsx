@@ -1,5 +1,8 @@
+import ChatClient from "@/components/client/ChatClient";
 import { requireSession } from "@/server/lib/session";
-import ChatClient from "./ChatClient";
+
+
+
 
 export default async function ChatPage() {
   const session = await requireSession();

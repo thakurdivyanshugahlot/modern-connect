@@ -2,13 +2,13 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Send, 
-  Bot, 
-  User, 
-  Loader2, 
-  Mail, 
-  Calendar as CalendarIcon, 
+import {
+  Send,
+  Bot,
+  User,
+  Loader2,
+  Mail,
+  Calendar as CalendarIcon,
   Sparkles,
   RefreshCcw,
   ArrowUpRight
@@ -88,7 +88,7 @@ export default function ChatClient({
       const data = await res.json();
 
       if (data.error) {
-         setMessages((prev) => [
+        setMessages((prev) => [
           ...prev,
           { role: "assistant", content: data.error },
         ]);
@@ -138,7 +138,7 @@ export default function ChatClient({
         <div className="flex-1 overflow-y-auto p-6 scroll-smooth" ref={scrollRef}>
           <div className="max-w-3xl mx-auto space-y-8 pb-10">
             {messages.length === 0 && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col items-center text-center mt-20"
@@ -188,7 +188,7 @@ export default function ChatClient({
                       <AvatarFallback className="bg-blue-600/20 text-blue-500"><Bot className="h-4 w-4" /></AvatarFallback>
                     )}
                   </Avatar>
-                  
+
                   <div className={`flex flex-col gap-2 max-w-[80%] ${msg.role === "user" ? "items-end" : "items-start"}`}>
                     <div
                       className={`px-5 py-4 rounded-3xl text-sm leading-relaxed whitespace-pre-wrap ${
@@ -255,7 +255,7 @@ export default function ChatClient({
                   />
                   <div className="flex items-center justify-between mt-2 px-2">
                     <div className="flex items-center gap-2">
-                       <Tooltip>
+                      <Tooltip>
                         <TooltipTrigger render={
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-blue-400 hover:bg-blue-400/10">
                             <Mail className="h-4 w-4" />
@@ -272,9 +272,9 @@ export default function ChatClient({
                         <TooltipContent side="top">Reference Calendar</TooltipContent>
                       </Tooltip>
                     </div>
-                    <Button 
-                      size="sm" 
-                      onClick={() => send()} 
+                    <Button
+                      size="sm"
+                      onClick={() => send()}
                       disabled={loading || !input.trim()}
                       className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-9 px-4 transition-all active:scale-95"
                     >

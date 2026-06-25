@@ -5,7 +5,9 @@ import {
   getWeekRange,
   type ParsedEvent,
 } from "@/server/lib/calendar-utils";
-import CalendarClient from "./CalendarClient";
+import CalendarClient from "@/components/client/CalendarClient";
+
+
 
 async function getWeekEvents(userId: string): Promise<ParsedEvent[]> {
   const tenant = corsair.withTenant(userId);
@@ -44,10 +46,10 @@ export default async function CalendarPage() {
   const grouped = groupByDate(events);
 
   return (
-    <CalendarClient 
-      userId={session.user.id} 
-      groupedEvents={grouped} 
-      totalCount={events.length} 
+    <CalendarClient
+      userId={session.user.id}
+      groupedEvents={grouped}
+      totalCount={events.length}
     />
   );
 }

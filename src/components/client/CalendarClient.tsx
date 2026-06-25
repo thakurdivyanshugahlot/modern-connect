@@ -1,14 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { 
-  Calendar as CalendarIcon, 
-  ChevronLeft, 
-  ChevronRight, 
-  Plus, 
-  MapPin, 
-  Users, 
-  Video, 
+import {
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  MapPin,
+  Users,
+  Video,
   MoreHorizontal,
   Clock,
   Sparkles,
@@ -20,8 +20,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { CreateEventButton } from "./CreateEventButton";
+
 import { type ParsedEvent } from "@/server/lib/calendar-utils";
+import { CreateEventButton } from "./CreateEventButton";
 
 interface CalendarProps {
   userId: string;
@@ -29,7 +30,7 @@ interface CalendarProps {
   totalCount: number;
 }
 
-function formatEventTime(start: any, isAllDay: boolean): string {
+function formatEventTime(start: string, isAllDay: boolean): string {
   if (isAllDay) return "All day";
   const date = new Date(start);
   return date.toLocaleTimeString("en-IN", {

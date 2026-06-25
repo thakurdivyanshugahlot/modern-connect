@@ -1,13 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  archiveMessageAction,
+  trashMessageAction,
+  getInboxMessagesAction,
+} from "@/app/actions/gmail";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Mail, 
-  Search, 
-  Filter, 
-  MoreHorizontal, 
-  Star, 
+import {
+  Mail,
+  Search,
+  Filter,
+  MoreHorizontal,
+  Star,
   Paperclip,
   Inbox as InboxIcon,
   Archive,
@@ -53,7 +59,58 @@ function formatDate(dateStr: string): string {
   }
 }
 
-export default function InboxClient({ messages }: { messages: CachedMessage[] }) {
+export default function InboxClient({
+  messages: initialMessages,
+}: {
+  messages: CachedMessage[];
+}) {
+  const queryClient = useQueryClient();
+  const QUERY_KEY = ["inbox"] as const;
+
+  // Seed the cache with the server-rendered list so there's no loading flash.
+  const { data: messages = [] } = useQuery({
+    queryKey: QUERY_KEY,
+    queryFn: getInboxMessagesAction,
+    initialData: initialMessages,
+    staleTime: 30_000,
+  });
+
+  // Shared optimistic-removal lifecycle for both archive and delete.
+  const removeOptimistically = {
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
+      const previous = queryClient.getQueryData<CachedMessage[]>(QUERY_KEY);
+      queryClient.setQueryData<CachedMessage[]>(QUERY_KEY, (old) =>
+        (old ?? []).filter((m) => m.id !== id)
+      );
+      return { previous };
+    },
+    onError: (
+      _err: unknown,
+      _id: string,
+      context: { previous?: CachedMessage[] } | undefined
+    ) => {
+      // Roll the row back if the server call failed.
+      if (context?.previous) {
+        queryClient.setQueryData(QUERY_KEY, context.previous);
+      }
+    },
+    // No onSettled refetch: the read path hits the corsair DB cache which can
+    // lag the live Gmail API, so refetching could resurrect a just-removed row.
+    // Optimistic state stays authoritative until the next full navigation /
+    // 30s revalidation / SSE refresh reconciles.
+  };
+
+  const archive = useMutation({
+    mutationFn: archiveMessageAction,
+    ...removeOptimistically,
+  });
+
+  const trash = useMutation({
+    mutationFn: trashMessageAction,
+    ...removeOptimistically,
+  });
+
   const container = {
     hidden: { opacity: 0 },
     show: {
@@ -81,11 +138,11 @@ export default function InboxClient({ messages }: { messages: CachedMessage[] })
               {messages.length}
             </Badge>
           </div>
-          
+
           <div className="max-w-md w-full ml-4 hidden md:block">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
-              <Input 
+              <Input
                 className="bg-zinc-900/50 border-zinc-800 h-9 pl-9 text-xs placeholder:text-zinc-600 focus-visible:ring-blue-500/20 rounded-xl"
                 placeholder="Search messages..."
               />
@@ -157,7 +214,7 @@ export default function InboxClient({ messages }: { messages: CachedMessage[] })
             <p className="text-xs text-zinc-500 mt-1">Great job! You've reached inbox zero.</p>
           </div>
         ) : (
-          <motion.div 
+          <motion.div
             variants={container}
             initial="hidden"
             animate="show"
@@ -177,7 +234,7 @@ export default function InboxClient({ messages }: { messages: CachedMessage[] })
                     {isUnread && (
                       <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500" />
                     )}
-                    
+
                     <div className="flex items-center gap-3 shrink-0">
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-700 group-hover:text-zinc-500 transition-colors">
                         <Star className="h-4 w-4" />
@@ -193,7 +250,7 @@ export default function InboxClient({ messages }: { messages: CachedMessage[] })
                       <div className={`md:col-span-3 truncate text-sm ${isUnread ? 'font-bold text-zinc-100' : 'text-zinc-400'}`}>
                         {senderName}
                       </div>
-                      
+
                       <div className="md:col-span-7 flex items-center gap-2 min-w-0">
                         <div className={`truncate text-sm ${isUnread ? 'text-zinc-200' : 'text-zinc-500'}`}>
                           <span className={isUnread ? 'font-semibold' : ''}>{msg.subject}</span>
@@ -213,10 +270,31 @@ export default function InboxClient({ messages }: { messages: CachedMessage[] })
                     </div>
 
                     <div className="absolute right-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-zinc-900 px-2 py-1 rounded-lg border border-zinc-800 shadow-xl">
-                       <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-500 hover:text-white">
+                       <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={archive.isPending}
+                        onClick={(e) => {
+                          // Buttons sit inside the row <Link>; stop navigation.
+                          e.preventDefault();
+                          e.stopPropagation();
+                          archive.mutate(msg.id);
+                        }}
+                        className="h-7 w-7 text-zinc-500 hover:text-white"
+                      >
                         <Archive className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-500 hover:text-red-400">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={trash.isPending}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          trash.mutate(msg.id);
+                        }}
+                        className="h-7 w-7 text-zinc-500 hover:text-red-400"
+                      >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>

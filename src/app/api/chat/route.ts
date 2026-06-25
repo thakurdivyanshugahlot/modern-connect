@@ -18,6 +18,8 @@ import {
   classifyReadTarget,
 } from "@/server/lib/intent-classifier";
 import { redis, checkRateLimit, incrementRateLimit } from "@/server/lib/redis";
+import { buildRawMessage } from "@/server/lib/gmail-utils";
+import { z } from "zod";
 
 const geminiClient = new OpenAI({
   apiKey: process.env.GEMINI_API_KEY!,
@@ -142,13 +144,46 @@ export async function POST(req: NextRequest) {
   const trimmedHistory = safeHistory.slice(-6);
 
   const provider = new OpenAIAgentsProvider();
-  const tools = await provider.build({ corsair: tenantCorsair, tool });
+  const mcpTools = await provider.build({ corsair: tenantCorsair, tool });
+
+  // High-level send tool — builds the RFC 2822 / base64url `raw` payload
+  // internally so the model never has to hand-construct MIME inside run_script.
+  const sendEmailTool = tool({
+    name: "send_email",
+    description:
+      "Send an email via Gmail. Prefer this over run_script for sending mail — it builds the raw MIME message for you. Provide plain text in `body`. Pass `threadId` only when replying to an existing thread.",
+    parameters: z.object({
+      to: z.string().describe("Recipient email address"),
+      subject: z.string().describe("Email subject line"),
+      body: z.string().describe("Plain text email body"),
+      threadId: z
+        .string()
+        .nullable()
+        .optional()
+        .describe("Existing Gmail thread ID to reply within, if any"),
+    }),
+    async execute({ to, subject, body, threadId }) {
+      try {
+        const raw = buildRawMessage({ from: "me", to, subject, body });
+        const result = await tenantCorsair.gmail.api.messages.send({
+          raw,
+          ...(threadId ? { threadId } : {}),
+        });
+        return { success: true, messageId: result?.id };
+      } catch (err: any) {
+        return { success: false, error: err?.message ?? String(err) };
+      }
+    },
+  });
+
+  const tools = [...mcpTools, sendEmailTool];
 
   const agent = new Agent({
     name: "modern-connect-agent",
     model: "gemini-2.5-flash",
     instructions: `You have access to Corsair tools for Gmail and Google Calendar.
 Use list_operations to discover available APIs, get_schema to understand required arguments, and run_script to execute them.
+To send an email, ALWAYS use the dedicated send_email tool — do NOT build raw MIME or call gmail.api.messages.send via run_script.
 When referencing resources, always use their ID not their name.
 Available plugins are 'gmail' and 'googlecalendar'.
 Today is ${new Date().toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}.

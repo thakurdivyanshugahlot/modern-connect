@@ -2,24 +2,25 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { 
-  Mail, 
-  Send, 
-  FileText, 
-  Settings, 
-  Plus, 
-  Tag, 
-  Calendar as CalendarIcon, 
+import {
+  Mail,
+  Send,
+  FileText,
+  Settings,
+  Plus,
+  Tag,
+  Calendar as CalendarIcon,
   ChevronRight,
   Sparkles,
   ExternalLink
 } from "lucide-react";
-import { NewMailBanner } from "./NewMailBanner";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { NewMailBanner } from "./NewMailBanner";
 
 interface DashboardProps {
   userEmail: string;
@@ -50,7 +51,7 @@ function formatDate(dateStr: string): string {
 
 function formatEventTime(start: any, isAllDay: boolean): string {
   if (isAllDay) return "All day";
-  const date = new Date(start.dateTime);
+  const date = new Date(start);
   return date.toLocaleTimeString("en-IN", {
     hour: "numeric",
     minute: "2-digit",
@@ -58,16 +59,7 @@ function formatEventTime(start: any, isAllDay: boolean): string {
   });
 }
 
-export default function DashboardClient({
-  userEmail,
-  recentMessages,
-  unreadCount,
-  sentToday,
-  draftCount,
-  labels,
-  todayEvents
-}: DashboardProps) {
-  
+export default function DashboardClient({ userEmail, recentMessages, unreadCount, sentToday, draftCount, labels, todayEvents }: DashboardProps) {
   const stats = [
     { label: "Unread", value: unreadCount, sub: "in inbox", icon: Mail, color: "text-blue-400", bg: "bg-blue-400/10" },
     { label: "Sent Today", value: sentToday, sub: "messages", icon: Send, color: "text-purple-400", bg: "bg-purple-400/10" },
@@ -91,7 +83,7 @@ export default function DashboardClient({
   };
 
   return (
-    <div className="flex-1 bg-zinc-950 text-zinc-100 h-full overflow-hidden flex flex-col">
+    <div className="flex-1 bg-zinc-950 text-zinc-100 h-full min-h-0 overflow-hidden flex flex-col">
       {/* Header */}
       <header className="h-16 border-b border-zinc-800 flex items-center justify-between px-8 bg-zinc-950/50 backdrop-blur-md sticky top-0 z-10">
         <div className="flex items-center gap-3">
@@ -113,12 +105,19 @@ export default function DashboardClient({
         </div>
       </header>
 
-      <ScrollArea className="flex-1">
-        <main className="max-w-6xl mx-auto px-8 py-10">
-          <NewMailBanner />
+      <NewMailBanner
+        userEmail={userEmail}
+        unreadCount={unreadCount}
+        onMarkAsRead={() => {
+          // This would be implemented with a server action or API route in a real app
+          console.log("Mark as read clicked");
+        }}
+      />
 
+      <ScrollArea className="flex-1 min-h-0">
+        <main className="max-w-6xl mx-auto px-8 py-10">
           {/* Stats Grid */}
-          <motion.div 
+          <motion.div
             variants={container}
             initial="hidden"
             animate="show"
@@ -142,12 +141,12 @@ export default function DashboardClient({
                   </CardContent>
                 </Card>
               </motion.div>
-            ))}
+              ))}
           </motion.div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Recent Messages */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
@@ -175,7 +174,7 @@ export default function DashboardClient({
                       {recentMessages.map((msg, i) => {
                         const senderName = (msg.from ?? "").replace(/<.*?>/, "").trim();
                         const initials = senderName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
-                        
+
                         return (
                           <Link key={msg.id} href={`/gmail/${msg.id}`} className="flex items-center gap-4 p-4 hover:bg-zinc-800/40 transition-all group">
                             <Avatar className="h-10 w-10 border border-zinc-800">

@@ -2,20 +2,19 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { 
-  ArrowLeft, 
-  Reply, 
-  Forward, 
-  Trash2, 
-  Archive, 
-  MoreVertical, 
-  Star, 
-  Clock, 
+import {
+  ArrowLeft,
+  Reply,
+  Forward,
+  Trash2,
+  Archive,
+  MoreVertical,
+  Star,
+  Clock,
   Printer,
   ExternalLink,
   ChevronDown,
   Sparkles
-
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +23,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EmailBody } from "./EmailBody";
+
 
 interface CachedMessage {
   id: string;
@@ -166,7 +166,7 @@ export default function MessageDetailClient({ message }: { message: CachedMessag
               <div className={message.htmlBody ? "" : "p-8 md:p-12"}>
                 <EmailBody message={message} />
               </div>
-              
+
               {/* Actions Footer */}
               <div className="p-6 bg-zinc-50 border-t border-zinc-100 flex flex-wrap gap-3">
                 <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl gap-2 font-semibold px-6 transition-all active:scale-95 shadow-lg shadow-blue-600/20">
